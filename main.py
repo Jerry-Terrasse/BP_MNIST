@@ -1,9 +1,14 @@
 #!/usr/bin/python3
 
 import numpy as np
+import os
 
+'''
 train_name = "mnist_train_100.csv"
 test_name = "mnist_test_10.csv"
+'''
+train_name = "mnist_train.csv"
+test_name = "mnist_test.csv"
 
 
 class NeuNet(object):
@@ -15,7 +20,7 @@ class NeuNet(object):
         self.lr = lnrate
         self.wih = np.random.normal(0, pow(self.hnodes,-0.5), (self.hnodes,self.inodes))
         self.who = np.random.normal(0, pow(self.onodes,-0.5), (self.onodes,self.hnodes))
-        pass
+        return
     
     def query(self,ipt):
         ipt = np.dot(self.wih, ipt)
@@ -39,27 +44,28 @@ class NeuNet(object):
         np.save("vars.npy", np.array([self.inodes, self.hnodes, self.onodes, self.lr]))
         np.save("wih.npy", self.wih)
         np.save("who.npy", self.who)
-        pass
+        return
     
     def load(self):
         self.innodes, self.hnodes, self.onodes, self.lr = np.load("vars.npy")
         self.innodes, self.hnodes, self.onodes = int(self.innodes), int(self.hnodes), int(self.onodes)
         self.wih = np.load("wih.npy")
         self.who = np.load("who.npy")
-        pass
+        return
 
 
 def train(times):
     for i in range(times):
+        cost = float()
         for j in datas:
             ans = np.array([np.zeros(work.onodes)]).T + 0.01
             data = np.asfarray([j.split(',')]).T
             ans[int(data[0,0]),0] = 0.99
             data = data[1:] / 255 * 0.99 + 0.01
-            print("No.%d: cost = %f" % (i,work.train(data,ans)))
-            pass
-        pass
-    pass
+            cost += work.train(data,ans)
+        cost /= len(datas)
+        print("No.%d: cost = %f" % (i,cost))
+    return
 
 def test():
     ret=int()
@@ -69,12 +75,26 @@ def test():
         data = data[1:] / 255 * 0.99 + 0.01
         pdt = work.query(data)
         ret +=  pdt == ans
-        print(pdt, "->", ans)
-    return "%.2f%%" % (ret / len(exam) * 100)
+        # print(pdt, "->", ans)
+    return "  %.2f%%" % (ret / len(exam) * 100)
 
 def act(mat):
     return 1/(1+np.exp(-mat))
 
+def recognize(finname,foutname):
+    if not os.path.isfile(finname):
+        print("  '%s' not found" % (finname))
+        return
+    file = open(finname, 'r')
+    task = file.readlines()
+    file.close()
+    file = open(foutname,'w')
+    for i in task:
+        data = np.asfarray([i.split(',')]).T
+        data = data / 255 * 0.99 + 0.01
+        file.write(str(work.query(data))+'\n')
+    file.close()
+    return
 
 work = NeuNet(784, 200, 10, 0.01)
 file = open(train_name, 'r')
@@ -86,25 +106,19 @@ file.close()
 
 
 if __name__ == '__main__':
-    
     cmd = input("/>")
     while True:
         if cmd == 'save':
             work.save()
-            pass
         elif cmd == 'load':
             work.load()
-            pass
         elif cmd == 'train':
             times = int(input("  for: "))
             train(times)
-            pass
         elif cmd == 'test':
             print(test())
-            pass
         elif cmd == 'exit':
             exit()
-            pass
         elif cmd == 'set':
             var_name = input("  name: ")
             var_val = eval(input("  val: "))
@@ -112,8 +126,10 @@ if __name__ == '__main__':
                 work.lr = var_val
             else:
                 print("  '%s' is not defined" % (var_name))
+        elif cmd == 'rec':
+            finname = input("  input: ")
+            foutname = input("  output: ")
+            recognize(finname,foutname)
         else:
             print("  Unknown command")
-            pass
         cmd = input("/>")
-        pass
