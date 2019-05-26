@@ -22,7 +22,7 @@ class NeuNet(object):
         ipt = act(ipt)
         ipt = np.dot(self.who, ipt)
         ipt = act(ipt)
-        return np.where(ipt == np.max(ipt))
+        return int(np.where(ipt == np.max(ipt))[0])
     
     def train(self,input,answer):
         oi = np.dot(self.wih, input)
@@ -31,18 +31,19 @@ class NeuNet(object):
         oh = act(oh)
         eo = answer - oh
         eh = np.dot(self.who.T, eo)
-        who += self.lr * np.dot(eo * oh * (1 - oh), oi.T)
-        wih += self.lr * np.dot(eh * oi * (1 - oi), input.T)
-        return np.sum(eo)
+        self.who += self.lr * np.dot(eo * oh * (1 - oh), oi.T)
+        self.wih += self.lr * np.dot(eh * oi * (1 - oi), input.T)
+        return np.sum(eo * eo)
     
     def save(self):
-        np.save("vars.npy", np.array([self.innodes, self.hnodes, self.onodes, self.lr]))
+        np.save("vars.npy", np.array([self.inodes, self.hnodes, self.onodes, self.lr]))
         np.save("wih.npy", self.wih)
         np.save("who.npy", self.who)
         pass
     
     def load(self):
         self.innodes, self.hnodes, self.onodes, self.lr = np.load("vars.npy")
+        self.innodes, self.hnodes, self.onodes = int(self.innodes), int(self.hnodes), int(self.onodes)
         self.wih = np.load("wih.npy")
         self.who = np.load("who.npy")
         pass
@@ -51,11 +52,11 @@ class NeuNet(object):
 def train(times):
     for i in range(times):
         for j in datas:
-            ans = np.zeros(work.outnodes) + 0.01
-            data = np.asfarray(j.split(','))
-            ans[int(data[0])]=0.99
+            ans = np.array([np.zeros(work.onodes)]).T + 0.01
+            data = np.asfarray([j.split(',')]).T
+            ans[int(data[0,0]),0] = 0.99
             data = data[1:] / 255 * 0.99 + 0.01
-            print("No.%d:cost=%f" % (i,work.train(data,ans)))
+            print("No.%d: cost = %f" % (i,work.train(data,ans)))
             pass
         pass
     pass
@@ -63,33 +64,39 @@ def train(times):
 def test():
     ret=int()
     for i in exam:
-        data = np.asfarray(i.split(','))
-        ans = int(data[0])
-        data = data[1:]
-        ret += work.query(data) == ans
-    return "%.2f%%" % (ret/exam.length)
+        data = np.asfarray([i.split(',')]).T
+        ans = int(data[0,0])
+        data = data[1:] / 255 * 0.99 + 0.01
+        pdt = work.query(data)
+        ret +=  pdt == ans
+        print(pdt, "->", ans)
+    return "%.2f%%" % (ret / len(exam) * 100)
+
+def act(mat):
+    return 1/(1+np.exp(-mat))
+
+
+work = NeuNet(784, 200, 10, 0.01)
+file = open(train_name, 'r')
+datas = file.readlines()
+file.close()
+file = open(test_name, 'r')
+exam = file.readlines()
+file.close()
 
 
 if __name__ == '__main__':
+    
     cmd = input("/>")
     while True:
-        if cmd == 'init':
-            work = NeuNet(784, 200, 10, 0.01)
-            file = open(train_name, 'r')
-            datas = file.readlines()
-            file.close()
-            file = open(test_name, 'r')
-            exam = file.readlines()
-            file.close()
-            pass
-        elif cmd == 'save':
+        if cmd == 'save':
             work.save()
             pass
         elif cmd == 'load':
             work.load()
             pass
         elif cmd == 'train':
-            times = int(input("  for:"))
+            times = int(input("  for: "))
             train(times)
             pass
         elif cmd == 'test':
@@ -98,8 +105,15 @@ if __name__ == '__main__':
         elif cmd == 'exit':
             exit()
             pass
+        elif cmd == 'set':
+            var_name = input("  name: ")
+            var_val = eval(input("  val: "))
+            if var_name == 'lr':
+                work.lr = var_val
+            else:
+                print("  '%s' is not defined" % (var_name))
         else:
-            print("Unknown command")
+            print("  Unknown command")
             pass
         cmd = input("/>")
         pass
